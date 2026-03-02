@@ -1,5 +1,3 @@
-from datetime import time
-
 from django.db import models
 
 
@@ -68,9 +66,8 @@ class DeviceVisitTime(models.Model):
 
 
 class AmplitudeSyncSchedule(models.Model):
-    run_at = models.TimeField(default=time(1, 0), verbose_name='Время запуска')
     enabled = models.BooleanField(default=True, verbose_name='Включено')
-    last_run_on = models.DateField(null=True, blank=True, verbose_name='Последний запуск (дата)')
+    last_run_at = models.DateTimeField(null=True, blank=True, verbose_name='Последний запуск (время)')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
 
     class Meta:
@@ -78,4 +75,4 @@ class AmplitudeSyncSchedule(models.Model):
         verbose_name_plural = 'Amplitude Sync Schedules'
 
     def __str__(self) -> str:
-        return f'Sync at {self.run_at.strftime("%H:%M")} (enabled={self.enabled})'
+        return f'Hourly sync (enabled={self.enabled})'

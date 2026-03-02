@@ -142,9 +142,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
 CELERY_BEAT_SCHEDULE = {
-    'run-amplitude-sync-by-admin-time': {
+    'run-amplitude-sync-hourly': {
         'task': 'amplitude.tasks.run_scheduled_sync',
-        'schedule': timedelta(minutes=1),
+        'schedule': timedelta(hours=1),
     },
 }
 
@@ -157,3 +157,8 @@ AMPLITUDE_MOBILE_EVENT_TYPES = [
     for event_type in os.getenv('AMPLITUDE_MOBILE_EVENT_TYPES', '').split(',')
     if event_type.strip()
 ]
+
+AVATARIYA_BASE_URL = os.getenv('AVATARIYA_BASE_URL', 'http://188.94.158.71/api/v1')
+AVATARIYA_BEARER_TOKEN = os.getenv('AVATARIYA_BEARER_TOKEN', '')
+AVATARIYA_TIMEOUT_SECONDS = int(os.getenv('AVATARIYA_TIMEOUT_SECONDS', '30'))
+AVATARIYA_PHONES_BATCH_SIZE = int(os.getenv('AVATARIYA_PHONES_BATCH_SIZE', '100'))

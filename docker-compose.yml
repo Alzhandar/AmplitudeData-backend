@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh /app/entrypoint.sh web
     volumes:
       - .:/app
     ports:
@@ -14,7 +14,7 @@ services:
 
   celery:
     build: .
-    command: celery -A core worker -l info
+    command: sh /app/entrypoint.sh celery
     volumes:
       - .:/app
     env_file:
@@ -25,7 +25,7 @@ services:
 
   celery-beat:
     build: .
-    command: celery -A core beat -l info
+    command: sh /app/entrypoint.sh beat
     volumes:
       - .:/app
     env_file:

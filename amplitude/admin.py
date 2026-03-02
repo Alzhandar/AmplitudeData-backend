@@ -163,14 +163,14 @@ class DailyDeviceActivityAdmin(admin.ModelAdmin):
 class DeviceVisitTimeAdmin(admin.ModelAdmin):
     list_display = ('daily_activity', 'event_time', 'created_at')
     list_filter = ('daily_activity__date', 'event_time')
-    search_fields = ('daily_activity__device_id',)
+    search_fields = ('daily_activity__device_id', 'daily_activity__phone_number')
 
 
 @admin.register(AmplitudeSyncSchedule)
 class AmplitudeSyncScheduleAdmin(admin.ModelAdmin):
-    list_display = ('run_at', 'enabled', 'last_run_on', 'updated_at')
-    fields = ('run_at', 'enabled', 'last_run_on')
-    readonly_fields = ('last_run_on',)
+    list_display = ('enabled', 'last_run_at', 'updated_at')
+    fields = ('enabled', 'last_run_at')
+    readonly_fields = ('last_run_at',)
 
     def has_add_permission(self, request):
         return not AmplitudeSyncSchedule.objects.exists()
