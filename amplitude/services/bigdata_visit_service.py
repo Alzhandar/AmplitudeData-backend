@@ -1,14 +1,15 @@
 import hashlib
 import json
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from typing import Dict, List, Optional, Tuple
 
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from amplitude.models import BigDataVisit
+from amplitude.models import BigDataPhoneDaySyncState, BigDataVisit
 from utils.avatariya_client import AvatariyaClient
 
 
@@ -27,18 +28,21 @@ class BigDataVisitSyncService:
                 'updated': 0,
             }
 
+        days = self._iter_days(start_date, end_date)
+        required_days_count = len(days)
         phones_to_fetch = normalized_phones
         if not force_refresh:
-            existing_phones = set(
-                BigDataVisit.objects.filter(
-                    time_create__date__range=(start_date, end_date),
-                    guest_phone_normalized__in=normalized_phones,
+            synced_phones = set(
+                BigDataPhoneDaySyncState.objects.filter(
+                    phone_normalized__in=normalized_phones,
+                    date__range=(start_date, end_date),
                 )
-                .exclude(guest_phone_normalized='')
-                .values_list('guest_phone_normalized', flat=True)
-                .distinct()
+                .values('phone_normalized')
+                .annotate(days_synced=Count('date', distinct=True))
+                .filter(days_synced=required_days_count)
+                .values_list('phone_normalized', flat=True)
             )
-            phones_to_fetch = [phone for phone in normalized_phones if phone not in existing_phones]
+            phones_to_fetch = [phone for phone in normalized_phones if phone not in synced_phones]
 
         if not phones_to_fetch:
             return {
@@ -57,12 +61,42 @@ class BigDataVisitSyncService:
 
         inserted = 0
         updated = 0
+        day_counts: Dict[Tuple[str, date], int] = defaultdict(int)
         for row in rows:
             state = self._upsert_visit_row(row)
             if state == 'inserted':
                 inserted += 1
             elif state == 'updated':
                 updated += 1
+
+            normalized_phone = self._normalize_phone(row.get('guest_phone'))
+            visit_time = self._parse_visit_time(row)
+            if normalized_phone and visit_time is not None:
+                visit_day = visit_time.date()
+                if start_date <= visit_day <= end_date:
+                    day_counts[(normalized_phone, visit_day)] += 1
+
+        now = timezone.localtime(timezone.now())
+        sync_rows = []
+        for phone in phones_to_fetch:
+            for day in days:
+                sync_rows.append(
+                    BigDataPhoneDaySyncState(
+                        phone_normalized=phone,
+                        date=day,
+                        result_count=day_counts.get((phone, day), 0),
+                        synced_at=now,
+                    )
+                )
+
+        if sync_rows:
+            BigDataPhoneDaySyncState.objects.bulk_create(
+                sync_rows,
+                update_conflicts=True,
+                unique_fields=['phone_normalized', 'date'],
+                update_fields=['result_count', 'synced_at'],
+                batch_size=5000,
+            )
 
         return {
             'phones_total': len(normalized_phones),
@@ -105,7 +139,7 @@ class BigDataVisitSyncService:
         bigdata_visit_id = self._extract_bigdata_visit_id(row)
 
         with transaction.atomic():
-            obj, created = BigDataVisit.objects.update_or_create(
+            _, created = BigDataVisit.objects.update_or_create(
                 bigdata_visit_id=bigdata_visit_id,
                 defaults={
                     'guest_phone_raw': raw_phone,
@@ -117,9 +151,7 @@ class BigDataVisitSyncService:
 
         if created:
             return 'inserted'
-        if obj.updated_at:
-            return 'updated'
-        return 'skipped'
+        return 'updated'
 
     def _extract_bigdata_visit_id(self, row: Dict) -> str:
         for key in ('id', 'visit_id', 'visitId', 'bigdata_id', 'uuid'):
@@ -159,3 +191,11 @@ class BigDataVisitSyncService:
         if len(digits) == 11 and digits.startswith('8'):
             return '7' + digits[1:]
         return digits
+
+    def _iter_days(self, start_date: date, end_date: date) -> List[date]:
+        days = []
+        current = start_date
+        while current <= end_date:
+            days.append(current)
+            current += timedelta(days=1)
+        return days

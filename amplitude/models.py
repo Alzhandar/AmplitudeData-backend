@@ -97,3 +97,23 @@ class BigDataVisit(models.Model):
 
     def __str__(self) -> str:
         return f'{self.bigdata_visit_id} | {self.guest_phone_normalized} | {self.time_create}'
+
+
+class BigDataPhoneDaySyncState(models.Model):
+    phone_normalized = models.CharField(max_length=64, db_index=True, verbose_name='Телефон (normalized)')
+    date = models.DateField(db_index=True, verbose_name='Дата')
+    result_count = models.PositiveIntegerField(default=0, verbose_name='Количество визитов за день')
+    synced_at = models.DateTimeField(auto_now=True, verbose_name='Синхронизировано в')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=('phone_normalized', 'date'), name='uniq_bigdata_phone_day_sync_state'),
+        ]
+        indexes = [
+            models.Index(fields=('date', 'phone_normalized'), name='idx_bigdata_sync_day_phone'),
+        ]
+        verbose_name = 'Статус синка BigData (телефон/день)'
+        verbose_name_plural = 'Статусы синка BigData (телефон/день)'
+
+    def __str__(self) -> str:
+        return f'{self.phone_normalized} | {self.date} | {self.result_count}'

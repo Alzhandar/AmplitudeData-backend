@@ -4,7 +4,14 @@ from django.utils.http import urlencode
 from django.utils.html import format_html
 
 from .common import AmplitudeEventTranslations
-from .models import AmplitudeSyncSchedule, BigDataVisit, DailyDeviceActivity, DeviceVisitTime, MobileSession
+from .models import (
+    AmplitudeSyncSchedule,
+    BigDataPhoneDaySyncState,
+    BigDataVisit,
+    DailyDeviceActivity,
+    DeviceVisitTime,
+    MobileSession,
+)
 
 admin.site.site_header = 'Панель администратора'
 admin.site.site_title = 'Админка'
@@ -184,3 +191,10 @@ class BigDataVisitAdmin(admin.ModelAdmin):
     list_display = ('time_create', 'bigdata_visit_id', 'guest_phone_normalized', 'guest_phone_raw', 'updated_at')
     list_filter = ('time_create',)
     search_fields = ('bigdata_visit_id', 'guest_phone_raw', 'guest_phone_normalized')
+
+
+@admin.register(BigDataPhoneDaySyncState)
+class BigDataPhoneDaySyncStateAdmin(admin.ModelAdmin):
+    list_display = ('date', 'phone_normalized', 'result_count', 'synced_at')
+    list_filter = ('date',)
+    search_fields = ('phone_normalized',)
