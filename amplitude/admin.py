@@ -5,12 +5,14 @@ from django.utils.html import format_html
 
 from .common import AmplitudeEventTranslations
 from .models import (
+    AllowedEmployeePosition,
     AmplitudeSyncSchedule,
     BigDataPhoneDaySyncState,
     BigDataVisit,
     DailyDeviceActivity,
     DeviceVisitTime,
     MobileSession,
+    UserEmployeeBinding,
 )
 
 admin.site.site_header = 'Панель администратора'
@@ -198,3 +200,16 @@ class BigDataPhoneDaySyncStateAdmin(admin.ModelAdmin):
     list_display = ('date', 'phone_normalized', 'result_count', 'synced_at')
     list_filter = ('date',)
     search_fields = ('phone_normalized',)
+
+
+@admin.register(AllowedEmployeePosition)
+class AllowedEmployeePositionAdmin(admin.ModelAdmin):
+    list_display = ('position_guid', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('position_guid', 'note')
+
+
+@admin.register(UserEmployeeBinding)
+class UserEmployeeBindingAdmin(admin.ModelAdmin):
+    list_display = ('user', 'iin', 'updated_at')
+    search_fields = ('user__username', 'iin')

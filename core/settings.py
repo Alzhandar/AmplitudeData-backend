@@ -43,8 +43,18 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'amplitude',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -162,3 +172,5 @@ AVATARIYA_BASE_URL = os.getenv('AVATARIYA_BASE_URL', 'http://188.94.158.71/api/v
 AVATARIYA_BEARER_TOKEN = os.getenv('AVATARIYA_BEARER_TOKEN', '')
 AVATARIYA_TIMEOUT_SECONDS = int(os.getenv('AVATARIYA_TIMEOUT_SECONDS', '30'))
 AVATARIYA_PHONES_BATCH_SIZE = int(os.getenv('AVATARIYA_PHONES_BATCH_SIZE', '100'))
+ALLOWED_EMPLOYEE_POSITION_PATH = os.getenv('ALLOWED_EMPLOYEE_POSITION_PATH', 'p/position/154')
+ALLOWED_EMPLOYEE_POSITION_ID = int(os.getenv('ALLOWED_EMPLOYEE_POSITION_ID', '154'))

@@ -1,5 +1,8 @@
+name: amplitude_backend
+
 services:
   web:
+    container_name: amplitude_backend_web
     build: .
     command: sh /app/entrypoint.sh web
     volumes:
@@ -11,8 +14,9 @@ services:
     depends_on:
       - db
       - redis
-
+                                                
   celery:
+    container_name: amplitude_backend_celery
     build: .
     command: sh /app/entrypoint.sh celery
     volumes:
@@ -24,6 +28,7 @@ services:
       - redis
 
   celery-beat:
+    container_name: amplitude_backend_celery_beat
     build: .
     command: sh /app/entrypoint.sh beat
     volumes:
@@ -35,6 +40,7 @@ services:
       - redis
 
   db:
+    container_name: amplitude_backend_db
     image: postgres:14
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -44,6 +50,7 @@ services:
       - "5432:5432"
 
   redis:
+    container_name: amplitude_backend_redis
     image: redis:7-alpine
     ports:
       - "6379:6379"

@@ -50,18 +50,24 @@ class AvatariyaClient:
 
         results: List[Dict] = []
         for phone_chunk in self._chunked(unique_phones, self.phones_batch_size):
+            payload = {
+                'start_date': start_date,
+                'end_date': end_date,
+                'phones': phone_chunk,
+            }
             data = self.visit_search_by_date_phones(start_date=start_date, end_date=end_date, phones=phone_chunk)
-            results.extend(self._collect_results_with_pagination(data))
+            results.extend(self._collect_results_with_pagination(data, payload=payload))
 
         return results
 
-    def _collect_results_with_pagination(self, first_page: Dict) -> List[Dict]:
+    def _collect_results_with_pagination(self, first_page: Dict, payload: Dict) -> List[Dict]:
         results = list(first_page.get('results', []))
         next_url = first_page.get('next')
 
         while next_url:
-            response = requests.get(
+            response = requests.post(
                 next_url,
+                json=payload,
                 headers=self._headers(),
                 timeout=self.timeout_seconds,
             )

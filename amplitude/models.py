@@ -117,3 +117,33 @@ class BigDataPhoneDaySyncState(models.Model):
 
     def __str__(self) -> str:
         return f'{self.phone_normalized} | {self.date} | {self.result_count}'
+
+
+class AllowedEmployeePosition(models.Model):
+    position_guid = models.CharField(max_length=64, unique=True, db_index=True, verbose_name='GUID позиции')
+    is_active = models.BooleanField(default=True, verbose_name='Доступ активен')
+    note = models.CharField(max_length=255, blank=True, verbose_name='Комментарий')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создано')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+
+    class Meta:
+        ordering = ('position_guid',)
+        verbose_name = 'Разрешенная позиция сотрудника'
+        verbose_name_plural = 'Разрешенные позиции сотрудников'
+
+    def __str__(self) -> str:
+        return f'{self.position_guid} (active={self.is_active})'
+
+
+class UserEmployeeBinding(models.Model):
+    user = models.OneToOneField('auth.User', on_delete=models.CASCADE, related_name='employee_binding', verbose_name='Пользователь')
+    iin = models.CharField(max_length=12, unique=True, db_index=True, verbose_name='ИИН')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создано')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+
+    class Meta:
+        verbose_name = 'Привязка пользователя к сотруднику'
+        verbose_name_plural = 'Привязки пользователей к сотрудникам'
+
+    def __str__(self) -> str:
+        return f'{self.user.username} -> {self.iin}'
