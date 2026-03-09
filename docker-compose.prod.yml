@@ -1,8 +1,4 @@
-# 1) Принудительно собрать static в Django
-cd /opt/AmplitudeData-backend
-docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput# 1) Принудительно собрать static в Django
-cd /opt/AmplitudeData-backend
-docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinputname: amplitude_backend_prod
+name: amplitude_backend_prod
 
 services:
   web:
