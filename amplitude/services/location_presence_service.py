@@ -53,16 +53,23 @@ class LocationPresenceAnalyticsService:
         )
 
         in_location_users = 0
+        not_in_location_users = 0
         matched_visit_records = 0
 
         for phone, app_times in phone_to_app_times.items():
             visit_times = phone_to_visit_times.get(phone, [])
-            if self._has_match_within_window(app_times, visit_times, window_hours):
+            matched_app_events = self._count_matches_within_window(app_times, visit_times, window_hours)
+            unmatched_app_events = len(app_times) - matched_app_events
+
+            # Majority rule per user: classify as in-location only when matched events prevail.
+            if matched_app_events > unmatched_app_events:
                 in_location_users += 1
-                matched_visit_records += len(visit_times)
+            else:
+                not_in_location_users += 1
+
+            matched_visit_records += matched_app_events
 
         users_with_phone = len(phone_to_app_times)
-        not_in_location_users = users_with_phone - in_location_users
 
         return {
             'start_date': start_date.isoformat(),
@@ -103,28 +110,32 @@ class LocationPresenceAnalyticsService:
 
         return mapping
 
-    def _has_match_within_window(self, app_times: List, visit_times: List, window_hours: int) -> bool:
+    def _count_matches_within_window(self, app_times: List, visit_times: List, window_hours: int) -> int:
         if not app_times or not visit_times:
-            return False
+            return 0
 
         window_seconds = window_hours * 3600
         pointer = 0
+        matches = 0
 
         for app_time in app_times:
             while pointer < len(visit_times) and visit_times[pointer] < app_time:
                 pointer += 1
 
-            neighbors = []
+            is_matched = False
+
             if pointer < len(visit_times):
-                neighbors.append(visit_times[pointer])
-            if pointer - 1 >= 0:
-                neighbors.append(visit_times[pointer - 1])
+                if abs((app_time - visit_times[pointer]).total_seconds()) <= window_seconds:
+                    is_matched = True
 
-            for visit_time in neighbors:
-                if abs((app_time - visit_time).total_seconds()) <= window_seconds:
-                    return True
+            if not is_matched and pointer - 1 >= 0:
+                if abs((app_time - visit_times[pointer - 1]).total_seconds()) <= window_seconds:
+                    is_matched = True
 
-        return False
+            if is_matched:
+                matches += 1
+
+        return matches
 
     def _normalize_phone(self, phone: Optional[str]) -> str:
         digits = ''.join(ch for ch in str(phone or '') if ch.isdigit())
