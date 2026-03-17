@@ -34,13 +34,7 @@ class AvatariyaClient:
             headers=self._headers(),
             timeout=self.timeout_seconds,
         )
-        try:
-            response.raise_for_status()
-        except HTTPError as exc:
-            detail = response.text.strip()
-            if detail:
-                raise ValueError(f'Avatariya API error: {detail}') from exc
-            raise ValueError('Avatariya API request failed') from exc
+        self._raise_for_status(response)
         return response.json()
 
     def visit_search_all_by_date_phones(self, start_date: str, end_date: str, phones: List[str]) -> List[Dict]:
@@ -57,6 +51,47 @@ class AvatariyaClient:
             }
             data = self.visit_search_by_date_phones(start_date=start_date, end_date=end_date, phones=phone_chunk)
             results.extend(self._collect_results_with_pagination(data, payload=payload))
+
+        return results
+
+    def get_kids_by_dob_day(self, dob_day: str) -> List[Dict]:
+        """Return all kids with the given birthday day (format: 'DD-MM', e.g. '16-02')."""
+        params = {'dob_day': dob_day}
+        response = requests.get(
+            f'{self.base_url}/kid/',
+            params=params,
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
+        first_page = response.json()
+        return self._collect_get_results_with_pagination(first_page, params=params)
+
+    def get_guest(self, guest_id: int) -> Dict:
+        """Return a single guest by ID."""
+        response = requests.get(
+            f'{self.base_url}/guest/{guest_id}/',
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
+        return response.json()
+
+    def _collect_get_results_with_pagination(self, first_page: Dict, params: Dict) -> List[Dict]:
+        results = list(first_page.get('results', []))
+        next_url = first_page.get('next')
+
+        while next_url:
+            response = requests.get(
+                next_url,
+                params=params,
+                headers=self._headers(),
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            page = response.json()
+            results.extend(page.get('results', []))
+            next_url = page.get('next')
 
         return results
 
@@ -84,6 +119,15 @@ class AvatariyaClient:
 
         for index in range(0, len(items), size):
             yield items[index:index + size]
+
+    def _raise_for_status(self, response: requests.Response) -> None:
+        try:
+            response.raise_for_status()
+        except HTTPError as exc:
+            detail = response.text.strip()
+            if detail:
+                raise ValueError(f'Avatariya API error: {detail}') from exc
+            raise ValueError('Avatariya API request failed') from exc
 
     def _headers(self) -> Dict[str, str]:
         return {
