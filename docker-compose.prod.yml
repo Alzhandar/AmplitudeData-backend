@@ -1,14 +1,40 @@
 name: amplitude_backend_prod
 
 services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/render-conf.sh:/docker-entrypoint.sh:ro
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - static_volume:/static:ro
+    entrypoint: ["/docker-entrypoint.sh"]
+    environment:
+      - SSL_DOMAIN=${SSL_DOMAIN:-api.avametric.online}
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+
   web:
     build: .
     command: sh /app/entrypoint.sh web-prod
     env_file:
       - .env
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:8001:8000"
+    volumes:
+      - static_volume:/app/staticfiles
     depends_on:
       - db
       - redis
@@ -47,3 +73,6 @@ services:
 
 volumes:
   postgres_data:
+  certbot_www:
+  certbot_conf:
+  static_volume:
