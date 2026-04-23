@@ -62,11 +62,16 @@ class MobileClient:
         review_id: Optional[int] = None,
     ) -> Optional[int]:
         """Send a mass push notification and return notification id when API provides it."""
+        normalized_city = str(city).strip()
         normalized_phones: Optional[List[str]]
         if phone_numbers is None:
+            if not normalized_city:
+                raise ValueError('phone_numbers cannot be null when city is empty')
             normalized_phones = None
         else:
             normalized_phones = [str(value).strip() for value in phone_numbers if str(value).strip()]
+            if not normalized_phones and not normalized_city:
+                raise ValueError('phone_numbers cannot be empty when city is empty')
 
         payload: Dict[str, Any] = {
             'phone_numbers': normalized_phones,
@@ -74,7 +79,7 @@ class MobileClient:
             'body': body,
             'title_kz': title_kz,
             'body_kz': body_kz,
-            'city': str(city).strip(),
+            'city': normalized_city,
             'park': park,
             'notification_type': notification_type,
         }

@@ -79,11 +79,21 @@ class PushDispatchService:
         review_id: Optional[int] = None,
     ) -> PushDispatchResult:
         send_to_city = target == "city"
-        recipients_count = None if send_to_city else len(phone_numbers or [])
-        city_value = str(city_id) if city_id is not None else ""
+        if send_to_city:
+            if city_id is None:
+                raise ValueError('city_id is required for city push dispatch')
+            normalized_phone_numbers: Optional[List[str]] = None
+            recipients_count: Optional[int] = None
+            city_value = str(city_id)
+        else:
+            normalized_phone_numbers = [str(value).strip() for value in (phone_numbers or []) if str(value).strip()]
+            if not normalized_phone_numbers:
+                raise ValueError('phone_numbers must not be empty for phones push dispatch')
+            recipients_count = len(normalized_phone_numbers)
+            city_value = ""
 
         notification_id = self.mobile_client.send_mass_push(
-            phone_numbers=None if send_to_city else (phone_numbers or []),
+            phone_numbers=normalized_phone_numbers,
             title=title,
             body=body,
             title_kz=title_kz,
