@@ -1,10 +1,22 @@
-from rest_framework import viewsets
+import logging
+
+from rest_framework import status, viewsets
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from notifications.permissions import HasPushDispatchAccess
 from notifications.serializers import NotificationCitySerializer, PushDispatchRequestSerializer
-from notifications.services.push_dispatch_service import PushDispatchService
+from notifications.services.push_dispatch_service import PushDispatchService, PushDispatchUpstreamError
+
+
+logger = logging.getLogger(__name__)
+
+
+class PushGatewayUnavailable(APIException):
+	status_code = status.HTTP_502_BAD_GATEWAY
+	default_detail = 'Сервис push-уведомлений временно недоступен.'
+	default_code = 'push_gateway_unavailable'
 
 
 class NotificationCityViewSet(viewsets.ViewSet):
@@ -26,7 +38,19 @@ class PushDispatchViewSet(viewsets.ViewSet):
 		serializer.is_valid(raise_exception=True)
 
 		service = PushDispatchService()
-		result = service.send_mass_push(**serializer.validated_data)
+		try:
+			result = service.send_mass_push(**serializer.validated_data)
+		except PushDispatchUpstreamError as exc:
+			payload = serializer.validated_data
+			logger.exception(
+				'Push dispatch upstream failure',
+				extra={
+					'target': payload.get('target'),
+					'city_id': payload.get('city_id'),
+					'recipients_count': len(payload.get('phone_numbers') or []),
+				},
+			)
+			raise PushGatewayUnavailable(str(exc))
 
 		return Response(
 			{

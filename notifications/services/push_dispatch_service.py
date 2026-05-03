@@ -7,6 +7,10 @@ from utils.avatariya_client import AvatariyaClient
 from utils.mobile_client import MobileClient
 
 
+class PushDispatchUpstreamError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class NotificationCityOption:
     id: int
@@ -92,17 +96,20 @@ class PushDispatchService:
             recipients_count = len(normalized_phone_numbers)
             city_value = ""
 
-        notification_id = self.mobile_client.send_mass_push(
-            phone_numbers=normalized_phone_numbers,
-            title=title,
-            body=body,
-            title_kz=title_kz,
-            body_kz=body_kz,
-            city=city_value,
-            notification_type=notification_type,
-            survey_id=survey_id,
-            review_id=review_id,
-        )
+        try:
+            notification_id = self.mobile_client.send_mass_push(
+                phone_numbers=normalized_phone_numbers,
+                title=title,
+                body=body,
+                title_kz=title_kz,
+                body_kz=body_kz,
+                city=city_value,
+                notification_type=notification_type,
+                survey_id=survey_id,
+                review_id=review_id,
+            )
+        except Exception as exc:
+            raise PushDispatchUpstreamError(str(exc)) from exc
 
         return PushDispatchResult(
             target=target,
