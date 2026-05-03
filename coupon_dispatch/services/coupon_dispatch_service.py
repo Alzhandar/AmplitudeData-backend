@@ -113,11 +113,33 @@ class CouponDispatchService:
         if not job:
             raise ValueError(f'Coupon dispatch job {job_id} does not exist')
 
-        if job.status == CouponDispatchJobStatus.PROCESSING:
-            logger.info('Coupon dispatch job %s is already processing', job_id)
-            return {'status': 'skipped', 'reason': 'already_processing'}
+        now = timezone.now()
+        claimed = CouponDispatchJob.objects.filter(
+            id=job_id,
+            status=CouponDispatchJobStatus.PENDING,
+            coupons_assigned=0,
+        ).update(
+            status=CouponDispatchJobStatus.PROCESSING,
+            started_at=now,
+            finished_at=None,
+            error_log='',
+            updated_at=now,
+        )
+        if claimed == 0:
+            job = CouponDispatchJob.objects.filter(id=job_id).first()
+            logger.info(
+                'Coupon dispatch job %s skipped: status=%s assigned=%s',
+                job_id,
+                job.status if job else 'missing',
+                job.coupons_assigned if job else 'n/a',
+            )
+            return {
+                'status': 'skipped',
+                'reason': 'non_pending_or_already_assigned',
+                'job_status': job.status if job else 'missing',
+            }
 
-        self._mark_processing(job)
+        job = CouponDispatchJob.objects.filter(id=job_id).first()
         logger.info('Coupon dispatch job %s started', job_id)
 
         try:
@@ -317,13 +339,6 @@ class CouponDispatchService:
             if sale_id == marketing_sale_id:
                 return self._to_int(item.get('free_coupons_count')) or 0
         return 0
-
-    def _mark_processing(self, job: CouponDispatchJob) -> None:
-        job.status = CouponDispatchJobStatus.PROCESSING
-        job.started_at = timezone.now()
-        job.finished_at = None
-        job.error_log = ''
-        job.save(update_fields=['status', 'started_at', 'finished_at', 'error_log', 'updated_at'])
 
     def _collect_raw_phones(self, job: CouponDispatchJob) -> List[str]:
         values: List[str] = []

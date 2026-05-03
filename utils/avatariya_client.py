@@ -417,6 +417,24 @@ class AvatariyaClient:
 
         return None
 
+    def create_cashback(self, payload: Dict) -> Dict:
+        response = requests.post(
+            f'{self.base_url}/cashback/',
+            json=payload,
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
+
+        if not response.text.strip():
+            return {}
+
+        try:
+            data = response.json()
+            return data if isinstance(data, dict) else {'data': data}
+        except ValueError:
+            return {'raw': response.text}
+
     def assign_coupon_to_guest(self, coupon_id: int, guest_id: int) -> Dict:
         payload = {'guest': guest_id}
         response = requests.patch(

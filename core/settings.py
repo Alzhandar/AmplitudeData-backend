@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'amplitude',
     'coupon_dispatch',
+    'bonus_transactions',
     'notifications',
 ]
 
