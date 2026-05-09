@@ -1,3 +1,4 @@
+import logging
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Iterable, List, Optional
@@ -5,6 +6,8 @@ from typing import Dict, Iterable, List, Optional
 import requests
 from requests import HTTPError
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AvatariyaClient:
@@ -155,11 +158,13 @@ class AvatariyaClient:
         marketing_sale_id: int,
         phone_number: str,
         amount: str,
+        valid_until: str,
     ) -> Dict:
         payload = {
             'marketing_sale_id': int(marketing_sale_id),
             'phone_number': str(phone_number or '').strip(),
             'amount': str(amount or '').strip(),
+            'valid_until': str(valid_until or '').strip(),
         }
         response = requests.post(
             f'{self.base_url}/admin/coupon-assign/assign/',
@@ -506,6 +511,10 @@ class AvatariyaClient:
             response.raise_for_status()
         except HTTPError as exc:
             detail = response.text.strip()
+            logger.warning(
+                'avatariya_api_error',
+                extra={'status_code': response.status_code, 'url': response.url, 'detail': detail[:500]},
+            )
             if detail:
                 raise ValueError(f'Avatariya API error: {detail}') from exc
             raise ValueError('Avatariya API request failed') from exc

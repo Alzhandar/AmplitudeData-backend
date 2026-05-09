@@ -96,3 +96,49 @@ class KidBirthdayNotification(models.Model):
 
 	def __str__(self) -> str:
 		return f'{self.kid_id} / {self.schedule_date} / sent={self.sent}'
+
+
+class PushDispatchStatus(models.TextChoices):
+	ACCEPTED = 'accepted', 'Accepted'
+	FAILED = 'failed', 'Failed'
+
+
+class PushDispatchLog(models.Model):
+	initiated_by = models.ForeignKey(
+		'auth.User',
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name='push_dispatch_logs',
+		verbose_name='Initiator',
+	)
+	initiated_by_email = models.EmailField(blank=True, verbose_name='Initiator email')
+	target = models.CharField(max_length=16, verbose_name='Target')
+	city_id = models.PositiveBigIntegerField(null=True, blank=True, verbose_name='City ID')
+	recipients_count = models.PositiveIntegerField(null=True, blank=True, verbose_name='Recipients count')
+	title = models.CharField(max_length=255, blank=True, verbose_name='Title (RU)')
+	body = models.TextField(blank=True, verbose_name='Body (RU)')
+	title_kz = models.CharField(max_length=255, blank=True, verbose_name='Title (KZ)')
+	body_kz = models.TextField(blank=True, verbose_name='Body (KZ)')
+	notification_type = models.CharField(max_length=64, default='default', verbose_name='Notification type')
+	survey_id = models.PositiveIntegerField(null=True, blank=True, verbose_name='Survey ID')
+	review_id = models.PositiveIntegerField(null=True, blank=True, verbose_name='Review ID')
+	notification_id = models.PositiveBigIntegerField(null=True, blank=True, verbose_name='External notification ID')
+	status = models.CharField(
+		max_length=16,
+		choices=PushDispatchStatus.choices,
+		default=PushDispatchStatus.ACCEPTED,
+		db_index=True,
+		verbose_name='Status',
+	)
+	error_message = models.TextField(blank=True, verbose_name='Error message')
+	created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+	updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+	class Meta:
+		ordering = ('-created_at',)
+		verbose_name = 'Push dispatch log'
+		verbose_name_plural = 'Push dispatch logs'
+
+	def __str__(self) -> str:
+		return f'#{self.id} {self.target} {self.status}'

@@ -12,19 +12,19 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, soft_time_limit=600, time_limit=660)
 def process_coupon_dispatch_job_task(self, job_id: int):
-    logger.info('Starting coupon dispatch job task: job_id=%s', job_id)
+    logger.info('task_started', extra={'job_id': job_id})
     try:
         return CouponDispatchService().process_job(job_id)
     except SoftTimeLimitExceeded:
-        logger.exception('Coupon dispatch job %s exceeded soft time limit', job_id)
+        logger.exception('task_soft_time_limit_exceeded', extra={'job_id': job_id})
         _mark_job_failed(
             job_id=job_id,
             message='Processing timeout exceeded. Job was automatically stopped.',
         )
         return {'job_id': job_id, 'status': 'failed', 'reason': 'timeout'}
     except Exception as exc:
-        logger.exception('Coupon dispatch job %s failed in task wrapper: %s', job_id, exc)
-        _mark_job_failed(job_id=job_id, message=f'Unhandled task error: {exc}')
+        logger.exception('task_failed', extra={'job_id': job_id, 'error': str(exc)})
+        _mark_job_failed(job_id=job_id, message='unhandled_exception')
         raise
 
 

@@ -42,19 +42,19 @@ class PushDispatchRequestSerializer(serializers.Serializer):
             if excel_file is not None:
                 filename = str(getattr(excel_file, "name", "")).lower()
                 if filename and not filename.endswith((".xlsx", ".xlsm", ".xltx", ".xltm")):
-                    raise serializers.ValidationError({"excel_file": "Excel файл должен быть .xlsx/.xlsm/.xltx/.xltm"})
+                    raise serializers.ValidationError({"excel_file": "Excel file must be .xlsx/.xlsm/.xltx/.xltm."})
 
                 excel_numbers = _extract_phone_numbers_from_excel(excel_file.read())
                 normalized_numbers = _merge_unique(normalized_numbers, excel_numbers)
 
             if not normalized_numbers:
-                raise serializers.ValidationError({"phone_numbers": "Укажите хотя бы один корректный номер"})
+                raise serializers.ValidationError({"phone_numbers": "Provide at least one valid phone number."})
             attrs["phone_numbers"] = normalized_numbers
             attrs["city_id"] = None
 
         if target == "city":
             if city_id is None:
-                raise serializers.ValidationError({"city_id": "Выберите город"})
+                raise serializers.ValidationError({"city_id": "City is required."})
             attrs["phone_numbers"] = []
             attrs["excel_file"] = None
 
@@ -76,7 +76,7 @@ def _normalize_phone_numbers(values: Iterable[str]) -> List[str]:
         if not phone:
             raise serializers.ValidationError(
                 {
-                    "phone_numbers": f"Некорректный номер в позиции {index + 1}: {raw}",
+                    "phone_numbers": f"Invalid phone number at position {index + 1}: {raw}",
                 }
             )
 
@@ -104,12 +104,12 @@ def _extract_phone_numbers_from_excel(binary: bytes) -> List[str]:
     try:
         from openpyxl import load_workbook
     except Exception as exc:
-        raise serializers.ValidationError({"excel_file": "Библиотека openpyxl недоступна"}) from exc
+        raise serializers.ValidationError({"excel_file": "openpyxl library is not available."}) from exc
 
     try:
         workbook = load_workbook(filename=io.BytesIO(binary), data_only=True)
     except Exception as exc:
-        raise serializers.ValidationError({"excel_file": "Не удалось прочитать Excel файл"}) from exc
+        raise serializers.ValidationError({"excel_file": "Failed to read Excel file."}) from exc
 
     sheet = workbook.active
     normalized: List[str] = []
@@ -126,7 +126,7 @@ def _extract_phone_numbers_from_excel(binary: bytes) -> List[str]:
 
         phone = _normalize_phone(raw)
         if not phone:
-            raise serializers.ValidationError({"excel_file": f"Некорректный номер в строке {row_index}: {raw}"})
+            raise serializers.ValidationError({"excel_file": f"Invalid phone number at row {row_index}: {raw}"})
 
         if phone in seen:
             continue

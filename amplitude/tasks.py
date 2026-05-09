@@ -1,3 +1,5 @@
+import logging
+
 from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
@@ -6,9 +8,12 @@ from amplitude.models import AmplitudeSyncSchedule, DailyDeviceActivity
 from amplitude.services.bigdata_visit_service import BigDataVisitSyncService
 from amplitude.services.sync_service import AmplitudeSyncService
 
+logger = logging.getLogger(__name__)
+
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 5})
 def sync_amplitude_today(self):
+    logger.info('sync_amplitude_today_started')
     service = AmplitudeSyncService()
     return service.sync_today_mobile_events()
 

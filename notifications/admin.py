@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from notifications.models import (
 	KidBirthdayNotification,
+	PushDispatchLog,
 	NotificationSchedule,
 	NotificationTemplate,
 	StoryRecipientConfig,
@@ -72,6 +73,45 @@ class KidBirthdayNotificationAdmin(admin.ModelAdmin):
 		'last_error',
 		'kid_payload',
 		'guest_payload',
+		'created_at',
+		'updated_at',
+	)
+
+	def has_add_permission(self, request):
+		return False
+
+
+@admin.register(PushDispatchLog)
+class PushDispatchLogAdmin(admin.ModelAdmin):
+	list_display = (
+		'id',
+		'created_at',
+		'initiated_by_email',
+		'target',
+		'city_id',
+		'recipients_count',
+		'notification_type',
+		'notification_id',
+		'status',
+	)
+	list_filter = ('status', 'target', 'notification_type', 'created_at')
+	search_fields = ('initiated_by_email', 'title', 'body', 'error_message')
+	readonly_fields = (
+		'initiated_by',
+		'initiated_by_email',
+		'target',
+		'city_id',
+		'recipients_count',
+		'title',
+		'body',
+		'title_kz',
+		'body_kz',
+		'notification_type',
+		'survey_id',
+		'review_id',
+		'notification_id',
+		'status',
+		'error_message',
 		'created_at',
 		'updated_at',
 	)

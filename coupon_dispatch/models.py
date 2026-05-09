@@ -14,10 +14,22 @@ class CouponDispatchInputSource(models.TextChoices):
 	MIXED = 'mixed', 'Смешанный'
 
 
+class CouponDispatchMode(models.TextChoices):
+	MARKETING_SALE = 'marketing_sale', 'По маркетинговой акции'
+	PREDEFINED_COUPON = 'predefined_coupon', 'Готовые коды из Excel'
+
+
 class CouponDispatchJob(models.Model):
 	title = models.CharField(max_length=255, verbose_name='Название купона для приложения')
+	dispatch_mode = models.CharField(
+		max_length=32,
+		choices=CouponDispatchMode.choices,
+		default=CouponDispatchMode.MARKETING_SALE,
+		verbose_name='Режим рассылки',
+	)
 	marketing_sale_id = models.PositiveBigIntegerField(db_index=True, verbose_name='ID маркетинговой акции')
 	marketing_sale_name = models.CharField(max_length=255, blank=True, verbose_name='Название маркетинговой акции')
+	valid_until = models.DateField(null=True, blank=True, verbose_name='Действует до')
 	initiated_by = models.ForeignKey(
 		'auth.User',
 		null=True,

@@ -1,8 +1,11 @@
+import logging
 from typing import IO, Any, Dict, List, Optional
 
 import requests
 from requests import HTTPError
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class MobileClient:
@@ -90,6 +93,29 @@ class MobileClient:
 
         parsed = self.post('/api/notifications/send-mass-push/', payload)
         return self._extract_notification_id(parsed)
+
+    def create_order_coupon_info_bulk_item(
+        self,
+        *,
+        coupon: str,
+        phone_number: str,
+        amount: str,
+        valid_until: str,
+        is_mobile: bool = False,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            'coupons': [
+                {
+                    'coupon': str(coupon or '').strip(),
+                    'phone_number': str(phone_number or '').strip(),
+                    'amount': str(amount or '').strip(),
+                    'valid_until': str(valid_until or '').strip(),
+                    'is_mobile': bool(is_mobile),
+                }
+            ]
+        }
+        parsed = self.post('/api/prizes/order-coupon-info/bulk-create/', payload)
+        return parsed if isinstance(parsed, dict) else {'raw': parsed}
 
     def create_story(
         self,
@@ -284,6 +310,10 @@ class MobileClient:
             response.raise_for_status()
         except HTTPError as exc:
             detail = response.text.strip()
+            logger.warning(
+                'mobile_api_error',
+                extra={'status_code': response.status_code, 'url': response.url, 'detail': detail[:500]},
+            )
             if detail:
                 raise ValueError(f'Mobile API error: {detail}') from exc
             raise ValueError('Mobile API request failed') from exc

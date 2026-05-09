@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import List, Optional
 
 from utils.avatariya_client import AvatariyaClient
 from utils.mobile_client import MobileClient
+
+logger = logging.getLogger(__name__)
 
 
 class PushDispatchUpstreamError(Exception):
@@ -109,8 +112,16 @@ class PushDispatchService:
                 review_id=review_id,
             )
         except Exception as exc:
+            logger.exception(
+                'push_dispatch_failed',
+                extra={'target': target, 'city_id': city_id},
+            )
             raise PushDispatchUpstreamError(str(exc)) from exc
 
+        logger.info(
+            'push_dispatch_accepted',
+            extra={'target': target, 'city_id': city_id, 'recipients_count': recipients_count, 'notification_id': notification_id},
+        )
         return PushDispatchResult(
             target=target,
             city_id=city_id if send_to_city else None,

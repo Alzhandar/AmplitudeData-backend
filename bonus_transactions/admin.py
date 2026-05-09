@@ -9,6 +9,7 @@ from bonus_transactions.models import BonusTransactionJob, BonusTransactionJobRe
 class BonusTransactionJobAdmin(admin.ModelAdmin):
     list_display = (
         'id',
+        'initiated_by',
         'status',
         'amount',
         'start_date',
@@ -18,7 +19,7 @@ class BonusTransactionJobAdmin(admin.ModelAdmin):
         'created_at',
     )
     list_filter = ('status', 'input_source', 'start_date', 'expiration_date')
-    search_fields = ('description', 'source_text', 'base_id_prefix')
+    search_fields = ('description', 'source_text', 'base_id_prefix', 'initiated_by__email')
     readonly_fields = (
         'created_at',
         'updated_at',

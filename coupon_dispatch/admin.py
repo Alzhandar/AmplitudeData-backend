@@ -17,7 +17,10 @@ class CouponDispatchJobAdmin(admin.ModelAdmin):
 	list_display = (
 		'id',
 		'title',
+		'initiated_by',
+		'dispatch_mode',
 		'marketing_sale_id',
+		'valid_until',
 		'status',
 		'total_phones',
 		'guests_found',
@@ -28,8 +31,10 @@ class CouponDispatchJobAdmin(admin.ModelAdmin):
 		'created_at',
 	)
 	list_filter = ('status', 'mobile_api_sent', 'created_at')
-	search_fields = ('title', 'marketing_sale_name', 'error_log')
+	search_fields = ('title', 'marketing_sale_name', 'error_log', 'initiated_by__email')
 	readonly_fields = (
+		'dispatch_mode',
+		'valid_until',
 		'status',
 		'total_phones',
 		'unique_phones',

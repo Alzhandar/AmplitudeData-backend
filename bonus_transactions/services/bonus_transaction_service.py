@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import re
 import uuid
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ from bonus_transactions.models import (
     BonusTransactionInputSource,
 )
 from utils.avatariya_client import AvatariyaClient
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -101,6 +104,7 @@ class BonusTransactionService:
             return BonusTransactionJob.objects.get(pk=job_id)
 
         job = BonusTransactionJob.objects.get(pk=job_id)
+        logger.info('job_started', extra={'job_id': job_id})
 
         try:
             raw_phones = self._collect_phone_candidates(job)
@@ -122,7 +126,7 @@ class BonusTransactionService:
                     )
                 )
 
-            for index, row in enumerate(parsed_rows, start=1):
+            for row in parsed_rows:
                 try:
                     guest_payload = self.avatariya.find_guest_by_phone(row.phone_normalized)
                     guest_id = self._extract_guest_id(guest_payload)
@@ -133,14 +137,14 @@ class BonusTransactionService:
                                 phone_raw=row.phone_raw,
                                 phone_normalized=row.phone_normalized,
                                 success=False,
-                                error_message='Guest not found by phone',
+                                error_message='guest_not_found',
                             )
                         )
                         continue
 
                     guest_found_count += 1
                     doc_guid = str(uuid.uuid4())
-                    base_id = self._build_base_id(job.base_id_prefix, guest_id, index)
+                    base_id = self._build_base_id(job.base_id_prefix)
                     payload = {
                         'doc_guid': doc_guid,
                         'guest': int(guest_id),
@@ -173,6 +177,10 @@ class BonusTransactionService:
                         )
                     )
                 except Exception as exc:
+                    logger.warning(
+                        'row_processing_error',
+                        extra={'job_id': job.id, 'phone': row.phone_normalized, 'detail': str(exc)},
+                    )
                     api_outcomes.append({'phone': row.phone_normalized, 'ok': False, 'error': str(exc)})
                     result_rows.append(
                         BonusTransactionJobResult(
@@ -180,7 +188,7 @@ class BonusTransactionService:
                             phone_raw=row.phone_raw,
                             phone_normalized=row.phone_normalized,
                             success=False,
-                            error_message=str(exc),
+                            error_message='processing_error',
                         )
                     )
 
@@ -218,11 +226,20 @@ class BonusTransactionService:
                     'updated_at',
                 ]
             )
+            logger.info(
+                'job_finished',
+                extra={
+                    'job_id': job.id,
+                    'cashbacks_created': success_count,
+                    'errors_count': total_errors,
+                },
+            )
             return job
         except Exception as exc:
+            logger.exception('job_failed', extra={'job_id': job.id})
             job.status = BonusTransactionJobStatus.FAILED
             job.finished_at = dj_timezone.now()
-            job.error_log = str(exc)
+            job.error_log = 'unhandled_exception'
             job.errors_count = max(1, job.errors_count)
             job.save(update_fields=['status', 'finished_at', 'error_log', 'errors_count', 'updated_at'])
             raise
@@ -246,7 +263,7 @@ class BonusTransactionService:
         for raw in values:
             normalized = self._normalize_phone(raw)
             if not normalized:
-                errors.append(f'Invalid phone number: {raw}')
+                errors.append('invalid_phone_format')
                 continue
             if normalized in seen:
                 continue
@@ -334,10 +351,9 @@ class BonusTransactionService:
                 return None
         return None
 
-    def _build_base_id(self, prefix: str, guest_id: int, index: int) -> str:
+    def _build_base_id(self, prefix: str) -> str:
         normalized_prefix = str(prefix or '').strip() or 'bonus'
-        composed = f'{normalized_prefix}-{guest_id}-{index}'
-        return composed[:255]
+        return normalized_prefix[:255]
 
     def _get_base_id_prefix(self) -> str:
         try:

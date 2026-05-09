@@ -65,8 +65,10 @@ class CouponDispatchJobViewSet(viewsets.ViewSet):
 		job = service.create_job(
 			user=request.user,
 			title=validated['title'],
-			marketing_sale_id=validated['marketing_sale_id'],
+			dispatch_mode=validated['dispatch_mode'],
+			marketing_sale_id=validated.get('marketing_sale_id'),
 			marketing_sale_name=validated.get('marketing_sale_name', ''),
+			valid_until=validated['valid_until'],
 			phones_text=validated.get('phones_text', ''),
 			source_file=validated.get('excel_file'),
 		)

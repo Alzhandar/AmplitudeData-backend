@@ -223,3 +223,35 @@ MOBILE_CLIENT_TIMEOUT_SECONDS = int(os.getenv('MOBILE_CLIENT_TIMEOUT_SECONDS', '
 
 ALLOWED_EMPLOYEE_POSITION_PATH = os.getenv('ALLOWED_EMPLOYEE_POSITION_PATH', 'p/position/154')
 ALLOWED_EMPLOYEE_POSITION_ID = int(os.getenv('ALLOWED_EMPLOYEE_POSITION_ID', '154'))
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] [{levelname}] [{name}] {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {'level': 'WARNING', 'propagate': True},
+        'django.request': {'level': 'ERROR', 'propagate': True},
+        'celery': {'level': 'INFO', 'propagate': True},
+        'coupon_dispatch': {'level': 'DEBUG', 'propagate': True},
+        'notifications': {'level': 'DEBUG', 'propagate': True},
+        'bonus_transactions': {'level': 'DEBUG', 'propagate': True},
+        'amplitude': {'level': 'DEBUG', 'propagate': True},
+        'utils': {'level': 'DEBUG', 'propagate': True},
+    },
+}
