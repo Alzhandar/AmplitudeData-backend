@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'coupon_dispatch',
     'bonus_transactions',
     'notifications',
+    'guest_profile',
 ]
 
 REST_FRAMEWORK = {

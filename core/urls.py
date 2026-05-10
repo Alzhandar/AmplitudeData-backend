@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/', include('coupon_dispatch.urls')),
     path('api/', include('bonus_transactions.urls')),
     path('api/', include('notifications.urls')),
+    path('api/', include('guest_profile.urls')),
 ]
 
 if settings.DEBUG:

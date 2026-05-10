@@ -82,6 +82,106 @@ class AvatariyaClient:
         self._raise_for_status(response)
         return response.json()
 
+    def list_orders_read(
+        self,
+        *,
+        guest_id: int,
+        c_created_from: Optional[str] = None,
+        c_created_to: Optional[str] = None,
+        ordering: str = '-c_created',
+        page: int = 1,
+        page_size: Optional[int] = None,
+    ) -> Dict:
+        params: Dict[str, str] = {
+            'guest': str(guest_id),
+            'ordering': str(ordering),
+            'page': str(max(1, int(page))),
+        }
+        if c_created_from:
+            params['c_created_from'] = str(c_created_from)
+        if c_created_to:
+            params['c_created_to'] = str(c_created_to)
+        if page_size is not None:
+            params['page_size'] = str(max(1, int(page_size)))
+
+        return self._get_paginated('/order/read/', params=params)
+
+    def get_cashback_summary_current(self, guest_id: int) -> Dict:
+        response = requests.get(
+            f'{self.base_url}/cashback/summary/current/',
+            params={'guest': str(guest_id)},
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
+        payload = response.json()
+        if isinstance(payload, dict):
+            # Some environments return paginated format: {count, results: [{sum, burn_date, ...}]}
+            if isinstance(payload.get('sum'), (int, float, str)):
+                return payload
+
+            results = payload.get('results')
+            if isinstance(results, list) and results and isinstance(results[0], dict):
+                return results[0]
+
+        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+            return payload[0]
+
+        return {}
+
+    def list_cashback_transactions(
+        self,
+        *,
+        guest_id: int,
+        transaction_date_gte: Optional[str] = None,
+        transaction_date_lte: Optional[str] = None,
+        page: int = 1,
+        page_size: Optional[int] = None,
+        ordering: str = '-transaction_date',
+    ) -> Dict:
+        params: Dict[str, str] = {
+            'guest': str(guest_id),
+            'ordering': str(ordering),
+            'page': str(max(1, int(page))),
+        }
+        if transaction_date_gte:
+            params['transaction_date_gte'] = str(transaction_date_gte)
+        if transaction_date_lte:
+            params['transaction_date_lte'] = str(transaction_date_lte)
+        if page_size is not None:
+            params['page_size'] = str(max(1, int(page_size)))
+
+        return self._get_paginated('/cashback/', params=params)
+
+    def get_crystal_summary(self, guest_id: int) -> Dict:
+        response = requests.get(
+            f'{self.base_url}/crystal/summary/',
+            params={'guest': str(guest_id)},
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
+        payload = response.json()
+        return payload if isinstance(payload, dict) else {}
+
+    def list_crystal_transactions(
+        self,
+        *,
+        guest_id: int,
+        page: int = 1,
+        page_size: Optional[int] = None,
+        ordering: str = '-date',
+    ) -> Dict:
+        params: Dict[str, str] = {
+            'guest': str(guest_id),
+            'ordering': str(ordering),
+            'page': str(max(1, int(page))),
+        }
+        if page_size is not None:
+            params['page_size'] = str(max(1, int(page_size)))
+
+        return self._get_paginated('/crystal/', params=params)
+
     def get_employee_by_iin(self, iin: str) -> Dict:
         """Return employee payload by IIN."""
         normalized = str(iin or '').strip()
@@ -498,6 +598,40 @@ class AvatariyaClient:
             next_url = page.get('next')
 
         return results
+
+    def _get_paginated(self, path: str, params: Optional[Dict[str, str]] = None) -> Dict:
+        response = requests.get(
+            f'{self.base_url}{path}',
+            params=params or {},
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
+        payload = response.json()
+
+        if isinstance(payload, dict):
+            results = payload.get('results')
+            raw_count = payload.get('count')
+            try:
+                count = int(raw_count)
+            except (TypeError, ValueError):
+                count = len(results) if isinstance(results, list) else 0
+            return {
+                'count': count,
+                'next': payload.get('next'),
+                'previous': payload.get('previous'),
+                'results': results if isinstance(results, list) else [],
+            }
+
+        if isinstance(payload, list):
+            return {
+                'count': len(payload),
+                'next': None,
+                'previous': None,
+                'results': payload,
+            }
+
+        return {'count': 0, 'next': None, 'previous': None, 'results': []}
 
     def _chunked(self, items: List[str], size: int) -> Iterable[List[str]]:
         if size <= 0:
