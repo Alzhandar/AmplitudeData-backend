@@ -7,12 +7,14 @@ from .views import (
 	AuthMeView,
 	AuthRegisterView,
 	DailyDeviceActivityViewSet,
+	MobileRegistrationsStatsViewSet,
 	LocationPresenceStatsViewSet,
 )
 
 router = DefaultRouter()
 router.register('amplitude/today-mobile-activity', DailyDeviceActivityViewSet, basename='today-mobile-activity')
 router.register('amplitude/location-presence-stats', LocationPresenceStatsViewSet, basename='location-presence-stats')
+router.register('amplitude/mobile-registrations-stats', MobileRegistrationsStatsViewSet, basename='mobile-registrations-stats')
 
 urlpatterns = router.urls
 urlpatterns += [

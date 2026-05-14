@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Any, Dict
 
@@ -5,22 +6,36 @@ from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
 
 from .models import DailyDeviceActivity, LocationPresenceStatsCache, UserEmployeeBinding
-from .serializers import DailyDeviceActivitySerializer
+from .permissions import HasAnalyticsAccess
+from .serializers import (
+    DailyDeviceActivitySerializer,
+    MobileRegistrationsStatsQuerySerializer,
+    MobileRegistrationsStatsResponseSerializer,
+)
 from .services.employee_access_service import EmployeeAccessService
 from .services.location_presence_service import LocationPresenceAnalyticsService
+from .services.mobile_registrations_stats_service import MobileRegistrationsStatsService, MobileRegistrationsUpstreamError
+
+logger = logging.getLogger(__name__)
+
+
+class MobileRegistrationsGatewayUnavailable(APIException):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    default_detail = 'Mobile registrations service is temporarily unavailable.'
+    default_code = 'mobile_registrations_gateway_unavailable'
 
 
 class DailyDeviceActivityViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = DailyDeviceActivitySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasAnalyticsAccess]
 
     def get_queryset(self):
         date_value = self.request.query_params.get('date') or timezone.localdate().isoformat()
@@ -28,7 +43,7 @@ class DailyDeviceActivityViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class LocationPresenceStatsViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasAnalyticsAccess]
     max_sync_range_days = 3
 
     def list(self, request):
@@ -102,6 +117,40 @@ class LocationPresenceStatsViewSet(viewsets.ViewSet):
         result['cached'] = False
 
         return Response(result)
+
+
+class MobileRegistrationsStatsViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, HasAnalyticsAccess]
+
+    def list(self, request):
+        query_serializer = MobileRegistrationsStatsQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        validated = query_serializer.validated_data
+
+        service = MobileRegistrationsStatsService()
+        try:
+            payload = service.get_stats(
+                year=validated['year'],
+                start_date=validated['start_date'],
+                end_date=validated['end_date'],
+            )
+        except ValueError as exc:
+            raise ValidationError({'detail': str(exc)}) from exc
+        except MobileRegistrationsUpstreamError as exc:
+            logger.exception(
+                'Mobile registrations stats upstream failure',
+                extra={
+                    'year': validated['year'],
+                    'start_date': validated['start_date'].isoformat(),
+                    'end_date': validated['end_date'].isoformat(),
+                    'user_id': getattr(request.user, 'id', None),
+                },
+            )
+            raise MobileRegistrationsGatewayUnavailable(str(exc))
+
+        response_serializer = MobileRegistrationsStatsResponseSerializer(data=payload)
+        response_serializer.is_valid(raise_exception=True)
+        return Response(response_serializer.validated_data)
 
 
 class AuthLoginView(APIView):

@@ -51,6 +51,21 @@ class MobileClient:
         self._raise_for_status(last_response)
         return self._json_or_empty(last_response)
 
+    def get_new_user_registration_stats(
+        self,
+        *,
+        year: int,
+        start_date: str,
+        end_date: str,
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            'year': int(year),
+            'start_date': str(start_date or '').strip(),
+            'end_date': str(end_date or '').strip(),
+        }
+        parsed = self.get('/api/users/stats/new/', params=params)
+        return parsed if isinstance(parsed, dict) else {'raw': parsed}
+
     def send_mass_push(
         self,
         phone_numbers: Optional[List[str]],
