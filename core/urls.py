@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/', include('bonus_transactions.urls')),
     path('api/', include('notifications.urls')),
     path('api/', include('guest_profile.urls')),
+    path('api/', include('employee_discount_check.urls')),
 ]
 
 if settings.DEBUG:

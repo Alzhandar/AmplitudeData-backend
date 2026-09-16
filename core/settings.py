@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'bonus_transactions',
     'notifications',
     'guest_profile',
+    'employee_discount_check',
 ]
 
 REST_FRAMEWORK = {

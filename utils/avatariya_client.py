@@ -82,6 +82,17 @@ class AvatariyaClient:
         self._raise_for_status(response)
         return response.json()
 
+    def check_employee_discount(self, phone_number: str, discount_scope: str) -> Dict:
+        """Check employee discount eligibility for a given scope ('restaurant' or 'park')."""
+        response = requests.get(
+            f'{self.base_url}/employee-discount/check/',
+            params={'phone_number': phone_number, 'discount_scope': discount_scope},
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
+        return response.json()
+
     def list_orders_read(
         self,
         *,

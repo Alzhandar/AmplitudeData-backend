@@ -125,6 +125,7 @@ class EmployeePortalPage(models.TextChoices):
     PUSH_DISPATCH = 'push-dispatch', 'Отправка пушей'
     BLACKLIST = 'blacklist', 'Черный список'
     GUEST_PROFILE = 'guest-profile', 'Профиль гостя'
+    EMPLOYEE_DISCOUNT_CHECK = 'employee-discount-check', 'Проверка скидки сотрудника'
 
 
 class AllowedEmployeePageAccess(models.Model):
