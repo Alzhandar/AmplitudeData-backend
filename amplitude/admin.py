@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.http import urlencode
@@ -15,6 +16,7 @@ from .models import (
     MobileSession,
     UserEmployeeBinding,
 )
+from .services.position_directory_service import PositionDirectoryService
 
 admin.site.site_header = 'Панель администратора'
 admin.site.site_title = 'Админка'
@@ -207,11 +209,49 @@ class BigDataPhoneDaySyncStateAdmin(admin.ModelAdmin):
     search_fields = ('phone_normalized',)
 
 
+class AllowedEmployeePageAccessForm(forms.ModelForm):
+    position_guid = forms.ChoiceField(
+        label='Должность',
+        choices=(),
+        help_text=(
+            'Список из avatracker.online. Одинаковые названия с разным GUID '
+            'подписаны отделом/парком, где реально работают сотрудники на этой должности.'
+        ),
+    )
+
+    class Meta:
+        model = AllowedEmployeePageAccess
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        try:
+            choices = PositionDirectoryService().list_choices()
+        except Exception:
+            choices = []
+
+        current_guid = self.instance.position_guid if self.instance and self.instance.pk else ''
+        if current_guid and current_guid not in dict(choices):
+            # Saved GUID no longer resolves (position renamed/removed, or
+            # avatracker unreachable right now) — keep it selectable so the
+            # existing grant isn't silently dropped from the form.
+            choices = [(current_guid, f'{current_guid} (не найден в avatracker)')] + list(choices)
+
+        self.fields['position_guid'].choices = [('', '— выберите должность —')] + list(choices)
+
+
 @admin.register(AllowedEmployeePageAccess)
 class AllowedEmployeePageAccessAdmin(admin.ModelAdmin):
-    list_display = ('page', 'position_guid', 'is_active', 'updated_at')
+    form = AllowedEmployeePageAccessForm
+    list_display = ('page', 'position_label', 'is_active', 'updated_at')
     list_filter = ('page', 'is_active')
     search_fields = ('page', 'position_guid', 'note')
+
+    def position_label(self, obj):
+        choices = dict(PositionDirectoryService().list_choices())
+        return choices.get(obj.position_guid, obj.position_guid)
+    position_label.short_description = 'Должность'
 
 
 @admin.register(UserEmployeeBinding)

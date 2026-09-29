@@ -1,4 +1,6 @@
 import logging
+import math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional
 
 import requests
@@ -83,6 +85,55 @@ class AvatrackerClient:
         self._raise_for_status(response)
         if not response.text.strip():
             return {}
+        return response.json()
+
+    def list_positions(self) -> List[Dict]:
+        """All positions ({name, guid_1c}), ~350 of them across a handful of
+        pages. Position names are not unique — about 1 in 7 is shared by
+        several distinct GUIDs (no department/org field on Position itself)."""
+        return self._list_all_pages(f'{self.base_url}/position/')
+
+    def list_all_employees(self, max_workers: int = 12) -> List[Dict]:
+        """Full employee directory (2000+ records, paginated) — expensive,
+        callers should cache the result. Used to disambiguate positions that
+        share a name, by seeing which division/park each GUID is actually
+        used in."""
+        return self._list_all_pages(f'{self.base_url}/employees/', max_workers=max_workers)
+
+    def _list_all_pages(self, url: str, max_workers: int = 12) -> List[Dict]:
+        first_page = self._get_page(url, page=1)
+        items = self._extract_employees(first_page)
+
+        total_count = int(first_page.get('count') or 0)
+        page_size = len(items) or 50
+        total_pages = math.ceil(total_count / page_size) if page_size else 1
+
+        if total_pages <= 1:
+            return items
+
+        pages: Dict[int, List[Dict]] = {1: items}
+        with ThreadPoolExecutor(max_workers=min(max_workers, total_pages - 1)) as executor:
+            futures = {
+                executor.submit(self._get_page, url, page): page
+                for page in range(2, total_pages + 1)
+            }
+            for future in as_completed(futures):
+                page_number = futures[future]
+                pages[page_number] = self._extract_employees(future.result())
+
+        ordered: List[Dict] = []
+        for page_number in range(1, total_pages + 1):
+            ordered.extend(pages.get(page_number, []))
+        return ordered
+
+    def _get_page(self, url: str, page: int) -> Dict:
+        response = requests.get(
+            url,
+            params={'page': page},
+            headers=self._headers(),
+            timeout=self.timeout_seconds,
+        )
+        self._raise_for_status(response)
         return response.json()
 
     def _extract_employees(self, payload) -> List[Dict]:

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from amplitude.models import AllowedEmployeePageAccess, EmployeePortalPage
-from utils.avatariya_client import AvatariyaClient
+from utils.avatracker_client import AvatrackerClient
 
 
 @dataclass(frozen=True)
@@ -17,15 +17,15 @@ class EmployeeProfile:
 
 
 class EmployeeAccessService:
-    def __init__(self, avatariya_client: Optional[AvatariyaClient] = None) -> None:
-        if avatariya_client is not None:
-            self.avatariya_client = avatariya_client
-            return
+    """Who can log into the portal, and what can they see.
 
-        try:
-            self.avatariya_client = AvatariyaClient()
-        except ValueError:
-            self.avatariya_client = None
+    Employees live in avatracker.online now — its employee-by-ИИН detail
+    response already carries `position`/`position_name` inline, so there's no
+    need for a separate position lookup (unlike the old bigdata-backed flow).
+    """
+
+    def __init__(self, avatracker_client: Optional[AvatrackerClient] = None) -> None:
+        self.avatracker_client = avatracker_client or AvatrackerClient()
 
     def can_access_site(self, iin: str) -> bool:
         return self.get_employee_profile(iin) is not None
@@ -34,31 +34,24 @@ class EmployeeAccessService:
         normalized_iin = (iin or '').strip()
         if not normalized_iin:
             return None
-        if self.avatariya_client is None:
-            return None
 
         try:
-            payload = self.avatariya_client.get_employee_by_iin(normalized_iin)
+            data = self.avatracker_client.find_employee_by_iin(normalized_iin)
         except Exception:
             return None
 
-        data = self._extract_employee_data(payload)
-        if data is None:
+        if not data:
             return None
 
         if data.get('active') is False:
             return None
 
-        full_name = str(data.get('full_name') or data.get('name') or '').strip()
-        email = str(data.get('email') or '').strip().lower()
-        position_guid, position_name = self._extract_position(data)
-
         return EmployeeProfile(
             iin=str(data.get('iin') or normalized_iin).strip(),
-            full_name=full_name,
-            email=email,
-            position_guid=position_guid,
-            position_name=position_name,
+            full_name=str(data.get('full_name') or '').strip(),
+            email=str(data.get('email') or '').strip().lower(),
+            position_guid=str(data.get('position') or '').strip(),
+            position_name=str(data.get('position_name') or '').strip(),
         )
 
     def allowed_pages_for_iin(self, iin: str) -> List[str]:
@@ -84,49 +77,3 @@ class EmployeeAccessService:
 
     def can_access_page(self, iin: str, page: str) -> bool:
         return page in self.allowed_pages_for_iin(iin)
-
-    def _extract_employee_data(self, payload: Any) -> Optional[Dict[str, Any]]:
-        if not isinstance(payload, dict):
-            return None
-
-        if payload.get('success') is False:
-            return None
-
-        if isinstance(payload.get('data'), dict):
-            return payload['data']
-
-        return payload
-
-    def _extract_position(self, data: Dict[str, Any]) -> tuple[str, str]:
-        raw = data.get('position')
-
-        if isinstance(raw, dict):
-            guid = str(raw.get('guid_1c') or raw.get('guid') or raw.get('id') or '').strip()
-            name = str(raw.get('name') or data.get('position_name') or '').strip()
-            return guid, name
-
-        if raw is None:
-            return '', ''
-
-        guid = str(raw).strip()
-        name = str(data.get('position_name') or '').strip()
-        if name:
-            return guid, name
-
-        return guid, self._fetch_position_name(guid)
-
-    def _fetch_position_name(self, position_guid: str) -> str:
-        normalized = (position_guid or '').strip()
-        if not normalized or self.avatariya_client is None:
-            return ''
-
-        try:
-            payload = self.avatariya_client.get_position_by_guid(normalized)
-        except Exception:
-            return ''
-
-        if not isinstance(payload, dict):
-            return ''
-
-        data = payload.get('data') if isinstance(payload.get('data'), dict) else payload
-        return str(data.get('name') or '').strip()
