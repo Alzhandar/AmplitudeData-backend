@@ -219,6 +219,12 @@ AVATARIYA_BEARER_TOKEN = os.getenv('AVATARIYA_BEARER_TOKEN', '')
 AVATARIYA_TIMEOUT_SECONDS = int(os.getenv('AVATARIYA_TIMEOUT_SECONDS', '30'))
 AVATARIYA_PHONES_BATCH_SIZE = int(os.getenv('AVATARIYA_PHONES_BATCH_SIZE', '100'))
 
+# Employee database (replaces bigdata's own employee tables). Used to let an
+# employee switch which phone number they use for the employee discount.
+AVATRACKER_BASE_URL = os.getenv('AVATRACKER_BASE_URL', 'https://avatracker.online/api/v1')
+AVATRACKER_TOKEN = os.getenv('AVATRACKER_TOKEN', '')
+AVATRACKER_TIMEOUT_SECONDS = int(os.getenv('AVATRACKER_TIMEOUT_SECONDS', '15'))
+
 MOBILE_CLIENT_BASE_URL = os.getenv('MOBILE_CLIENT_BASE_URL', 'https://app.avatariya.com')
 MOBILE_CLIENT_TOKEN = os.getenv('MOBILE_CLIENT_TOKEN', '')
 MOBILE_CLIENT_TIMEOUT_SECONDS = int(os.getenv('MOBILE_CLIENT_TIMEOUT_SECONDS', '30'))

@@ -19,6 +19,22 @@ class PushDispatchRequestSerializerTests(SimpleTestCase):
 		self.assertEqual(serializer.validated_data['phone_numbers'], ['77071234567', '77075554433'])
 		self.assertIsNone(serializer.validated_data['city_id'])
 
+	def test_phones_target_accepts_tashkent_park_numbers(self):
+		serializer = PushDispatchRequestSerializer(
+			data={
+				'target': 'phones',
+				'phone_numbers': ['77071234567', '+998901234567', '998907654321'],
+				'title': 'Title',
+				'body': 'Body',
+			}
+		)
+
+		self.assertTrue(serializer.is_valid(), serializer.errors)
+		self.assertEqual(
+			serializer.validated_data['phone_numbers'],
+			['77071234567', '998901234567', '998907654321'],
+		)
+
 	def test_city_target_requires_city_id(self):
 		serializer = PushDispatchRequestSerializer(
 			data={

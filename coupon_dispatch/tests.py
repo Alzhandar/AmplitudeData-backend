@@ -5,6 +5,7 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from coupon_dispatch.serializers import CouponDispatchJobCreateSerializer
+from coupon_dispatch.services.coupon_dispatch_service import CouponDispatchService
 
 
 class CouponDispatchJobCreateSerializerTests(SimpleTestCase):
@@ -95,3 +96,23 @@ class CouponDispatchJobCreateSerializerTests(SimpleTestCase):
 			}
 		)
 		self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class CouponDispatchServicePhoneNormalizationTests(SimpleTestCase):
+	def test_accepts_kazakhstan_number(self):
+		service = CouponDispatchService()
+		row = service._parse_phone('8 707 123 45 67')
+		self.assertTrue(row.valid)
+		self.assertEqual(row.phone_normalized, '77071234567')
+
+	def test_accepts_tashkent_park_number(self):
+		service = CouponDispatchService()
+		row = service._parse_phone('+998 90 123 45 67')
+		self.assertTrue(row.valid)
+		self.assertEqual(row.phone_normalized, '998901234567')
+
+	def test_rejects_garbage(self):
+		service = CouponDispatchService()
+		row = service._parse_phone('abc')
+		self.assertFalse(row.valid)
+		self.assertEqual(row.error_message, 'invalid_phone_format')

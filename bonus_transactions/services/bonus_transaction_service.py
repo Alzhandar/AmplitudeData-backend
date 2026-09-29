@@ -21,6 +21,7 @@ from bonus_transactions.models import (
     BonusTransactionInputSource,
 )
 from utils.avatariya_client import AvatariyaClient
+from utils.phone_utils import normalize_phone_number
 
 logger = logging.getLogger(__name__)
 
@@ -298,19 +299,7 @@ class BonusTransactionService:
         return phones
 
     def _normalize_phone(self, value: str) -> str:
-        if value is None:
-            return ''
-
-        digits = ''.join(ch for ch in str(value) if ch.isdigit())
-        if len(digits) == 11 and digits.startswith('8'):
-            return f'7{digits[1:]}'
-        if len(digits) == 10 and digits.startswith('0'):
-            return ''
-        if len(digits) == 10:
-            return f'7{digits}'
-        if len(digits) == 11 and digits.startswith('7'):
-            return digits
-        return ''
+        return normalize_phone_number(value)
 
     def _is_phone_header(self, value: str) -> bool:
         normalized = str(value).strip().lower()

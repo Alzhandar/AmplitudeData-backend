@@ -2,6 +2,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 
 from bonus_transactions.serializers import BonusTransactionJobCreateSerializer
+from bonus_transactions.services.bonus_transaction_service import BonusTransactionService
 
 
 class BonusTransactionJobCreateSerializerTests(SimpleTestCase):
@@ -39,3 +40,13 @@ class BonusTransactionJobCreateSerializerTests(SimpleTestCase):
             }
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class BonusTransactionServicePhoneNormalizationTests(SimpleTestCase):
+    def test_accepts_kazakhstan_number(self):
+        service = BonusTransactionService()
+        self.assertEqual(service._normalize_phone('87071234567'), '77071234567')
+
+    def test_accepts_tashkent_park_number(self):
+        service = BonusTransactionService()
+        self.assertEqual(service._normalize_phone('+998901234567'), '998901234567')

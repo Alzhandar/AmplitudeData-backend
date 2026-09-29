@@ -17,6 +17,7 @@ from coupon_dispatch.models import (
 )
 from utils.avatariya_client import AvatariyaClient
 from utils.mobile_client import MobileClient
+from utils.phone_utils import normalize_phone_number
 
 logger = logging.getLogger(__name__)
 
@@ -643,14 +644,11 @@ class CouponDispatchService:
         return collapsed in candidates or compact in candidates
 
     def _parse_phone(self, phone_raw: str) -> ParsedPhoneRow:
-        normalized = ''.join(ch for ch in str(phone_raw or '') if ch.isdigit())
-        if not normalized:
+        if not str(phone_raw or '').strip():
             return ParsedPhoneRow(phone_raw=phone_raw, phone_normalized='', valid=False, error_message='phone_empty')
 
-        if len(normalized) == 11 and normalized.startswith('8'):
-            normalized = f'7{normalized[1:]}'
-
-        if len(normalized) != 11 or not normalized.startswith('7'):
+        normalized = normalize_phone_number(phone_raw)
+        if not normalized:
             return ParsedPhoneRow(
                 phone_raw=phone_raw,
                 phone_normalized='',

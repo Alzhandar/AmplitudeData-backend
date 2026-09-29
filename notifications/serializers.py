@@ -5,6 +5,8 @@ from typing import Iterable, List
 
 from rest_framework import serializers
 
+from utils.phone_utils import normalize_phone_number as _shared_normalize_phone_number
+
 
 class NotificationCitySerializer(serializers.Serializer):
     id = serializers.IntegerField()
@@ -138,17 +140,7 @@ def _extract_phone_numbers_from_excel(binary: bytes) -> List[str]:
 
 
 def _normalize_phone(value: str) -> str:
-    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
-    if not digits:
-        return ""
-
-    if len(digits) == 11 and digits.startswith("8"):
-        digits = f"7{digits[1:]}"
-
-    if len(digits) != 11 or not digits.startswith("7"):
-        return ""
-
-    return digits
+    return _shared_normalize_phone_number(value)
 
 
 def _is_phone_header_label(value: str) -> bool:

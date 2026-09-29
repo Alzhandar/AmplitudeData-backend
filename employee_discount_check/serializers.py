@@ -1,17 +1,6 @@
 from rest_framework import serializers
 
-
-def normalize_phone_number(raw_phone: str) -> str:
-    digits = ''.join(ch for ch in str(raw_phone or '') if ch.isdigit())
-    if not digits:
-        return ''
-    if len(digits) == 11 and digits.startswith('8'):
-        return f'7{digits[1:]}'
-    if len(digits) == 11 and digits.startswith('7'):
-        return digits
-    if len(digits) == 10:
-        return f'7{digits}'
-    return ''
+from utils.phone_utils import normalize_phone_number
 
 
 class EmployeeDiscountCheckQuerySerializer(serializers.Serializer):
@@ -41,3 +30,54 @@ class EmployeeDiscountCheckResponseSerializer(serializers.Serializer):
     employee_found = serializers.BooleanField()
     restaurant = EmployeeDiscountScopeResultSerializer()
     park = EmployeeDiscountScopeResultSerializer()
+
+
+class EmployeeLookupQuerySerializer(serializers.Serializer):
+    identifier = serializers.CharField(
+        max_length=32,
+        help_text='Номер телефона или ИИН сотрудника (если по номеру не находит — ищем по ИИН)',
+    )
+
+    def validate_identifier(self, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise serializers.ValidationError('required')
+        return stripped
+
+
+class EmployeeLookupResponseSerializer(serializers.Serializer):
+    found = serializers.BooleanField()
+    matched_by = serializers.ChoiceField(choices=('phone', 'iin', 'none'))
+    employee_id = serializers.CharField(required=False, allow_blank=True)
+    employee_name = serializers.CharField(required=False, allow_blank=True)
+    employee_department = serializers.CharField(required=False, allow_blank=True)
+    employee_position = serializers.CharField(required=False, allow_blank=True)
+    current_phone = serializers.CharField(required=False, allow_blank=True)
+    iin = serializers.CharField(required=False, allow_blank=True)
+
+
+class EmployeePhoneChangeRequestSerializer(serializers.Serializer):
+    identifier = serializers.CharField(
+        max_length=32,
+        help_text='Номер телефона или ИИН сотрудника, чей номер меняем',
+    )
+    new_phone = serializers.CharField(max_length=32)
+
+    def validate_identifier(self, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise serializers.ValidationError('required')
+        return stripped
+
+    def validate_new_phone(self, value: str) -> str:
+        normalized = normalize_phone_number(value)
+        if not normalized:
+            raise serializers.ValidationError('invalid_phone_format')
+        return normalized
+
+
+class EmployeePhoneChangeResponseSerializer(serializers.Serializer):
+    employee_id = serializers.CharField()
+    employee_name = serializers.CharField(required=False, allow_blank=True)
+    old_phone = serializers.CharField()
+    new_phone = serializers.CharField()
