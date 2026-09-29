@@ -135,3 +135,23 @@ class AvatrackerClientFindByIinTests(SimpleTestCase):
         client = AvatrackerClient(base_url='https://example.test/api/v1', token='x')
         self.assertIsNone(client.find_employee_by_iin(''))
         self.assertIsNone(client.find_employee_by_iin(None))
+
+
+class AvatrackerClientUpdateEmployeePhoneTests(SimpleTestCase):
+    @patch('utils.avatracker_client.requests.patch')
+    def test_patches_the_iin_path_not_a_numeric_id(self, mock_patch):
+        # Regression: the detail routes only resolve by ИИН — PATCHing with the
+        # numeric `id` a list/lookup response carries 404s ("Сотрудник с ИИН
+        # '<id>' не найден"). update_employee_phone must be called with the ИИН.
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.text = '{}'
+        response.json.return_value = {}
+        mock_patch.return_value = response
+
+        client = AvatrackerClient(base_url='https://example.test/api/v1', token='x')
+        client.update_employee_phone('900101300123', '77071234567')
+
+        called_url = mock_patch.call_args.args[0]
+        self.assertEqual(called_url, 'https://example.test/api/v1/employees/900101300123/')
+        self.assertEqual(mock_patch.call_args.kwargs['json'], {'phone': '77071234567'})

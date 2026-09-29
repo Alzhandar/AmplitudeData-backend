@@ -65,10 +65,19 @@ class EmployeePhoneChangeService:
             )
 
         employee_id = employee.get('id')
+        employee_iin = str(employee.get('iin') or '').strip()
         old_phone = str(employee.get('phone') or '')
 
+        if not employee_iin:
+            # The detail routes (used to actually apply the change) only resolve
+            # by ИИН — without one we can look the employee up but not patch them.
+            raise EmployeeNotFoundError(
+                f'У сотрудника «{employee.get("full_name") or identifier}» не указан ИИН в avatracker — '
+                'изменить номер через API нельзя'
+            )
+
         if old_phone == new_phone:
-            logger.info('employee_phone_already_set', extra={'employee_id': employee_id, 'phone': new_phone})
+            logger.info('employee_phone_already_set', extra={'employee_iin': employee_iin, 'phone': new_phone})
             return {
                 'employee_id': str(employee_id),
                 'employee_name': employee.get('full_name') or '',
@@ -77,15 +86,15 @@ class EmployeePhoneChangeService:
             }
 
         holder = self.avatracker_client.find_employee_by_phone(new_phone)
-        if holder and str(holder.get('id')) != str(employee_id):
+        if holder and str(holder.get('iin') or '') != employee_iin:
             raise PhoneAlreadyInUseError(
                 f'Номер {new_phone} уже используется другим сотрудником ({holder.get("full_name")})'
             )
 
-        self.avatracker_client.update_employee_phone(employee_id, new_phone)
+        self.avatracker_client.update_employee_phone(employee_iin, new_phone)
         logger.info(
             'employee_phone_changed',
-            extra={'employee_id': employee_id, 'old_phone': old_phone, 'new_phone': new_phone},
+            extra={'employee_iin': employee_iin, 'old_phone': old_phone, 'new_phone': new_phone},
         )
 
         return {

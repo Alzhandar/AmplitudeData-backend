@@ -69,9 +69,13 @@ class AvatrackerClient:
         cache.set(cache_key, employee if employee else _IIN_NOT_FOUND, 300 if employee else 60)
         return employee
 
-    def update_employee_phone(self, employee_id, new_phone: str) -> Dict:
+    def update_employee_phone(self, iin: str, new_phone: str) -> Dict:
+        """The detail routes (GET/PATCH/PUT/DELETE) resolve only by ИИН — the
+        numeric `id` a list/search response also carries does NOT work here
+        (confirmed live: /employees/<numeric id>/ 404s with "Сотрудник с ИИН
+        '<id>' не найден", same as any other unknown ИИН)."""
         response = requests.patch(
-            f'{self.base_url}/employees/{employee_id}/',
+            f'{self.base_url}/employees/{iin}/',
             json={'phone': new_phone},
             headers=self._headers(),
             timeout=self.timeout_seconds,

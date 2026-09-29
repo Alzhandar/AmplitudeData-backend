@@ -124,7 +124,7 @@ class _FakeAvatrackerClient:
 		# by_phone: dict phone -> employee dict; by_iin: dict iin -> employee dict
 		self.by_phone = dict(by_phone or {})
 		self.by_iin = dict(by_iin or {})
-		self.updated = []
+		self.updated = []  # list of (iin, new_phone) — PATCH only resolves by ИИН
 
 	def find_employee_by_phone(self, phone_number):
 		return self.by_phone.get(phone_number)
@@ -132,25 +132,24 @@ class _FakeAvatrackerClient:
 	def find_employee_by_iin(self, iin):
 		return self.by_iin.get(iin)
 
-	def update_employee_phone(self, employee_id, new_phone):
-		self.updated.append((employee_id, new_phone))
+	def update_employee_phone(self, iin, new_phone):
+		self.updated.append((iin, new_phone))
 		for store in (self.by_phone, self.by_iin):
-			for key, employee in list(store.items()):
-				if str(employee.get('id')) == str(employee_id):
+			for employee in store.values():
+				if str(employee.get('iin')) == str(iin):
 					employee['phone'] = new_phone
 		# also make the employee findable under their new phone going forward
-		for store in (self.by_phone,):
-			for employee in list(store.values()):
-				if str(employee.get('id')) == str(employee_id):
-					store[new_phone] = employee
-					break
+		for employee in list(self.by_phone.values()):
+			if str(employee.get('iin')) == str(iin):
+				self.by_phone[new_phone] = employee
+				break
 		return {}
 
 
 class EmployeePhoneChangeServiceTests(SimpleTestCase):
 	def test_changes_phone_when_found_by_phone(self):
 		client = _FakeAvatrackerClient(by_phone={
-			'77071234567': {'id': 1, 'full_name': 'Иван Иванов', 'phone': '77071234567'},
+			'77071234567': {'id': 1, 'iin': '900101300111', 'full_name': 'Иван Иванов', 'phone': '77071234567'},
 		})
 		service = EmployeePhoneChangeService(avatracker_client=client)
 
@@ -159,7 +158,10 @@ class EmployeePhoneChangeServiceTests(SimpleTestCase):
 		self.assertEqual(result['employee_id'], '1')
 		self.assertEqual(result['old_phone'], '77071234567')
 		self.assertEqual(result['new_phone'], '998901234567')
-		self.assertEqual(client.updated, [(1, '998901234567')])
+		# PATCH must go out keyed by ИИН, not the numeric id — the detail routes
+		# on avatracker only resolve by ИИН (confirmed live: a numeric id 404s
+		# with "Сотрудник с ИИН '<id>' не найден").
+		self.assertEqual(client.updated, [('900101300111', '998901234567')])
 
 	def test_falls_back_to_iin_when_phone_not_found(self):
 		# The exact recurring case that prompted this feature: the employee's
@@ -178,7 +180,7 @@ class EmployeePhoneChangeServiceTests(SimpleTestCase):
 		self.assertEqual(result['employee_id'], '5')
 		self.assertEqual(result['old_phone'], '77009998877')
 		self.assertEqual(result['new_phone'], '77077778899')
-		self.assertEqual(client.updated, [(5, '77077778899')])
+		self.assertEqual(client.updated, [('900101300123', '77077778899')])
 
 	def test_find_employee_with_source_reports_iin_match(self):
 		employee = {'id': 5, 'full_name': 'Петр Петров', 'phone': '77009998877', 'iin': '900101300123'}
@@ -197,10 +199,23 @@ class EmployeePhoneChangeServiceTests(SimpleTestCase):
 		with self.assertRaises(EmployeeNotFoundError):
 			service.change_phone(identifier='900101300123', new_phone='998901234567')
 
+	def test_raises_when_employee_has_no_iin(self):
+		# Defensive: without an ИИН the detail (PATCH) route can't be resolved at
+		# all — must fail loudly instead of PATCHing "/employees//".
+		client = _FakeAvatrackerClient(by_phone={
+			'77071234567': {'id': 1, 'full_name': 'Иван Иванов', 'phone': '77071234567', 'iin': ''},
+		})
+		service = EmployeePhoneChangeService(avatracker_client=client)
+
+		with self.assertRaises(EmployeeNotFoundError):
+			service.change_phone(identifier='77071234567', new_phone='998901234567')
+
+		self.assertEqual(client.updated, [])
+
 	def test_raises_when_new_phone_belongs_to_another_employee(self):
 		client = _FakeAvatrackerClient(by_phone={
-			'77071234567': {'id': 1, 'full_name': 'Иван Иванов', 'phone': '77071234567'},
-			'998901234567': {'id': 2, 'full_name': 'Петр Петров', 'phone': '998901234567'},
+			'77071234567': {'id': 1, 'iin': '900101300111', 'full_name': 'Иван Иванов', 'phone': '77071234567'},
+			'998901234567': {'id': 2, 'iin': '900101300222', 'full_name': 'Петр Петров', 'phone': '998901234567'},
 		})
 		service = EmployeePhoneChangeService(avatracker_client=client)
 
@@ -211,7 +226,7 @@ class EmployeePhoneChangeServiceTests(SimpleTestCase):
 
 	def test_no_op_when_new_phone_matches_current_phone(self):
 		client = _FakeAvatrackerClient(by_phone={
-			'77071234567': {'id': 1, 'full_name': 'Иван Иванов', 'phone': '77071234567'},
+			'77071234567': {'id': 1, 'iin': '900101300111', 'full_name': 'Иван Иванов', 'phone': '77071234567'},
 		})
 		service = EmployeePhoneChangeService(avatracker_client=client)
 
